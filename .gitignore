@@ -1,0 +1,8 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+.firebase/
+*.log
+next-env.d.ts
