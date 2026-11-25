@@ -47,8 +47,8 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) and sign in with your admin credentials.
 
-## Deploying to Vercel
+## Deploying to Netlify
 
-1. Push the repository to your Git provider and import it into Vercel.
-2. Add all environment variables from `.env.example` (`NEXT_PUBLIC_FIREBASE_*` and optional `NEXT_PUBLIC_SITE_URL`) in the Vercel project settings.
-3. Deploy with the default Next.js build settings (`npm run build`).
+The site is deployed on Netlify from the `main` branch. Build settings live in `netlify.toml` (`npm run build`, publishing `.next`), and Netlify applies its Next.js runtime automatically.
+
+Set every `NEXT_PUBLIC_FIREBASE_*` variable from `.env.example` in the Netlify project's environment variables, plus the optional `NEXT_PUBLIC_SITE_URL` (the public site's address, used for image previews). They are compiled into the client bundle at build time, so start a new deploy whenever they change.
