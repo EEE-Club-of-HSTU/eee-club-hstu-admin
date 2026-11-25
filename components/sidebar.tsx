@@ -9,19 +9,42 @@ import { useAuth } from "@/components/auth-provider";
 import {
   Award,
   Bell,
+  BookMarked,
+  BookOpen,
   Calendar,
+  FileText,
+  FolderDown,
   GraduationCap,
+  Handshake,
+  HelpCircle,
+  Images,
   LayoutDashboard,
   LogOut,
   Mail,
   Menu,
   Newspaper,
+  Settings,
+  Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 
-const sections = [
+interface NavSection {
+  name: string;
+  items: Array<{
+    name: string;
+    href: string;
+    icon: LucideIcon;
+  }>;
+}
+
+const sections: NavSection[] = [
   {
-    name: "Community",
+    name: "Overview",
+    items: [{ name: "Dashboard", href: "/", icon: LayoutDashboard }],
+  },
+  {
+    name: "Inbox",
     items: [
       { name: "Alumni", href: "/alumni", icon: GraduationCap },
       { name: "Messages", href: "/messages", icon: Mail },
@@ -29,55 +52,67 @@ const sections = [
     ],
   },
   {
-    name: "Content",
+    name: "Events",
     items: [
       { name: "Events", href: "/events", icon: Calendar },
       { name: "Notices", href: "/notices", icon: Bell },
       { name: "Certificates", href: "/certificates", icon: Award },
     ],
   },
+  {
+    name: "Content",
+    items: [
+      { name: "Blog", href: "/blog", icon: BookOpen },
+      { name: "Magazine", href: "/magazine", icon: BookMarked },
+      { name: "Resources", href: "/resources", icon: FolderDown },
+      { name: "Gallery", href: "/gallery", icon: Images },
+    ],
+  },
+  {
+    name: "About",
+    items: [
+      { name: "Leadership", href: "/leadership", icon: Users },
+      { name: "Partners", href: "/partners", icon: Handshake },
+      { name: "Pages", href: "/pages", icon: FileText },
+    ],
+  },
+  {
+    name: "Support",
+    items: [{ name: "FAQs", href: "/faqs", icon: HelpCircle }],
+  },
+  {
+    name: "Settings",
+    items: [{ name: "Settings", href: "/settings", icon: Settings }],
+  },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
-  const isDashboard = pathname === "/";
-
   return (
-    <nav className="flex-1 space-y-1" aria-label="Main navigation">
-      <Link
-        href="/"
-        onClick={onNavigate}
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-[16px] text-[15px] transition-all ${
-          isDashboard
-            ? "bg-[#D7FF3D] text-[#08090B] font-semibold shadow-sm"
-            : "text-slate-600 hover:bg-slate-100 hover:text-[#08090B]"
-        }`}
-      >
-        <LayoutDashboard className="h-5 w-5 shrink-0" aria-hidden="true" />
-        Dashboard
-      </Link>
-
+    <nav className="flex-1 space-y-4" aria-label="Main navigation">
       {sections.map((section) => (
-        <div key={section.name} className="pt-4 space-y-1">
-          <h2 className="px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+        <div key={section.name} className="space-y-1">
+          <h2 className="px-4 text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">
             {section.name}
           </h2>
           {section.items.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(`${item.href}/`);
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-[16px] text-[15px] transition-all ${
+                className={`flex items-center gap-3 px-4 py-2 rounded-[16px] text-[14px] transition-all ${
                   isActive
                     ? "bg-[#D7FF3D] text-[#08090B] font-semibold shadow-sm"
                     : "text-slate-600 hover:bg-slate-100 hover:text-[#08090B]"
                 }`}
               >
-                <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {item.name}
               </Link>
             );
@@ -199,7 +234,7 @@ export function Sidebar() {
 
       {/* Desktop fixed left sidebar (lg+) */}
       <aside className="hidden lg:flex h-full w-[268px] shrink-0 flex-col bg-white border-r border-slate-200 z-20">
-        <div className="px-6 pt-7 pb-4 shrink-0">
+        <div className="px-6 pt-6 pb-4 shrink-0">
           <Link href="/" className="flex items-center gap-3">
             <img
               src="/logo.png"

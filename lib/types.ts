@@ -130,3 +130,180 @@ export interface NewsletterSubscriber {
   email: string;
   createdAt?: FirestoreTimestampLike;
 }
+
+export const BLOG_TAGS = [
+  "tutorial",
+  "recap",
+  "research",
+  "career",
+  "opinion",
+  "news",
+] as const;
+
+export type BlogTag = (typeof BLOG_TAGS)[number];
+
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  author: string;
+  authorRole?: string;
+  tag: BlogTag;
+  coverImageUrl?: string;
+  readMinutes?: number;
+  publishedOn: string;
+  featured: boolean;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const LEADERSHIP_CATEGORIES = [
+  "executive",
+  "alumni",
+  "advisory",
+  "taskforce",
+] as const;
+
+export type LeadershipCategory = (typeof LEADERSHIP_CATEGORIES)[number];
+
+export interface LeadershipMember {
+  id: string;
+  name: string;
+  role: string;
+  category: LeadershipCategory;
+  subtitle?: string;
+  session?: string;
+  photoUrl?: string;
+  order: number;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const GALLERY_CATEGORIES = [
+  "competition",
+  "workshop",
+  "trip",
+  "people",
+  "other",
+] as const;
+
+export type GalleryCategory = (typeof GALLERY_CATEGORIES)[number];
+
+export interface GalleryItem {
+  id: string;
+  title: string;
+  imageUrl: string;
+  category: GalleryCategory;
+  takenOn?: string;
+  order: number;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface MagazineTocEntry {
+  page: number;
+  title: string;
+}
+
+export interface MagazineIssue {
+  id: string;
+  issueNumber: number;
+  title: string;
+  season: string;
+  summary?: string;
+  coverImageUrl?: string;
+  coverColor?: string;
+  pdfUrl?: string;
+  pages?: number;
+  contents?: MagazineTocEntry[];
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const RESOURCE_KINDS = [
+  "notes",
+  "lab",
+  "code",
+  "exam",
+  "other",
+] as const;
+
+export type ResourceKind = (typeof RESOURCE_KINDS)[number];
+
+export interface ResourceItem {
+  id: string;
+  title: string;
+  kind: ResourceKind;
+  course?: string;
+  fileType?: string;
+  size?: string;
+  url: string;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  order: number;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PartnerItem {
+  id: string;
+  name: string;
+  category?: string;
+  logoUrl?: string;
+  website?: string;
+  order: number;
+  published: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export const STATIC_PAGE_IDS = [
+  "constitution",
+  "history",
+  "privacy",
+  "terms",
+] as const;
+
+export type StaticPageId = (typeof STATIC_PAGE_IDS)[number];
+
+export interface StaticPageDoc {
+  id: StaticPageId;
+  title: string;
+  content: string;
+  /** Null when the document has no valid updatedAt (shown as "—"). */
+  updatedAt: number | null;
+}
+
+export interface FooterSettings {
+  email?: string;
+  phone?: string;
+  officeHours?: string;
+  room?: string;
+  address?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
+  youtubeUrl?: string;
+  githubUrl?: string;
+  updatedAt?: number;
+}
+
+export interface LocationSettings {
+  name?: string;
+  address?: string;
+  mapUrl?: string;
+  updatedAt?: number;
+}

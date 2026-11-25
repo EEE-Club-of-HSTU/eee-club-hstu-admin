@@ -82,6 +82,86 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ---- Admin-managed content: public reads published docs only ----
+    function published() {
+      return resource.data.published == true;
+    }
+
+    function hasPublishedFlag(d) {
+      return d.published is bool;
+    }
+
+    match /blogs/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'title', 200)
+        && reqStr(request.resource.data, 'content', 60000)
+        && request.resource.data.tag in ['tutorial', 'recap', 'research', 'career', 'opinion', 'news'];
+      allow delete: if isAdmin();
+    }
+
+    match /leadership_members/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'name', 160)
+        && request.resource.data.category in ['executive', 'alumni', 'advisory', 'taskforce']
+        && request.resource.data.order is int;
+      allow delete: if isAdmin();
+    }
+
+    match /gallery_items/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'imageUrl', 500)
+        && request.resource.data.category in ['competition', 'workshop', 'trip', 'people', 'other'];
+      allow delete: if isAdmin();
+    }
+
+    match /magazines/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && request.resource.data.issueNumber is int
+        && reqStr(request.resource.data, 'title', 160);
+      allow delete: if isAdmin();
+    }
+
+    match /resources/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'title', 200)
+        && reqStr(request.resource.data, 'url', 500)
+        && request.resource.data.kind in ['notes', 'lab', 'code', 'exam', 'other'];
+      allow delete: if isAdmin();
+    }
+
+    match /faqs/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'question', 300)
+        && reqStr(request.resource.data, 'answer', 3000);
+      allow delete: if isAdmin();
+    }
+
+    match /partners/{id} {
+      allow read: if published() || isAdmin();
+      allow create, update: if isAdmin() && hasPublishedFlag(request.resource.data)
+        && reqStr(request.resource.data, 'name', 160);
+      allow delete: if isAdmin();
+    }
+
+    // Singletons: anyone can read, admins write.
+    match /pages_static/{pageId} {
+      allow read: if pageId in ['constitution', 'history', 'privacy', 'terms'];
+      allow write: if isAdmin() && pageId in ['constitution', 'history', 'privacy', 'terms']
+        && (request.method == 'delete'
+            || (reqStr(request.resource.data, 'title', 200) && reqStr(request.resource.data, 'content', 100000)));
+    }
+
+    match /site_settings/{docId} {
+      allow read: if docId in ['footer', 'location'];
+      allow write: if isAdmin() && docId in ['footer', 'location'];
+    }
+
     match /alumni_registrations/{id} {
       allow create: if
         request.resource.data.keys().hasOnly([

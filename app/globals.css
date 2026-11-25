@@ -16,3 +16,9 @@ dialog::backdrop {
   background: rgba(8, 9, 11, 0.45);
   backdrop-filter: blur(4px);
 }
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.25rem;
+}

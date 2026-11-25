@@ -216,3 +216,138 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   if (err instanceof Error && err.message) return err.message;
   return fallback;
 }
+
+/** Validates an https:// URL with optional required/maxLength constraints. */
+export function validateHttpsUrl(
+  raw: unknown,
+  options?: { required?: boolean; maxLength?: number; label?: string }
+): ContentLinkValidationResult {
+  const label = options?.label ?? "URL";
+  const maxLength = options?.maxLength ?? 500;
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) {
+    return options?.required
+      ? { ok: false, error: `${label} is required.` }
+      : { ok: true, value: "" };
+  }
+  if (trimmed.length > maxLength) {
+    return {
+      ok: false,
+      error: `${label} must be ${maxLength} characters or fewer.`,
+    };
+  }
+  if (!/^https:\/\//i.test(trimmed)) {
+    return { ok: false, error: `${label} must start with https://.` };
+  }
+  const safe = safeExternalHref(trimmed, { httpsOnly: true });
+  if (!safe) {
+    return { ok: false, error: `${label} must be a valid https:// URL.` };
+  }
+  return { ok: true, value: trimmed };
+}
+
+function isSafeRelativePath(trimmed: string): boolean {
+  if (!trimmed) return false;
+  if (/[\s\u0000-\u001f\u007f]/.test(trimmed)) return false;
+  if (
+    trimmed.startsWith("//") ||
+    trimmed.includes("\\") ||
+    trimmed.includes("..")
+  ) {
+    return false;
+  }
+  const firstSegment = trimmed.split(/[/?#]/, 1)[0] ?? "";
+  if (
+    /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed) ||
+    firstSegment.includes(":")
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Validates an image/media path as either an https:// URL or a safe site-relative path. */
+export function validateMediaUrl(
+  raw: unknown,
+  options?: { required?: boolean; maxLength?: number; label?: string }
+): ContentLinkValidationResult {
+  const label = options?.label ?? "Image URL";
+  const maxLength = options?.maxLength ?? 500;
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) {
+    return options?.required
+      ? { ok: false, error: `${label} is required.` }
+      : { ok: true, value: "" };
+  }
+  if (trimmed.length > maxLength) {
+    return {
+      ok: false,
+      error: `${label} must be ${maxLength} characters or fewer.`,
+    };
+  }
+  if (/^https:\/\//i.test(trimmed)) {
+    return validateHttpsUrl(trimmed, options);
+  }
+  if (!isSafeRelativePath(trimmed)) {
+    return {
+      ok: false,
+      error: `${label} must be an https:// URL or a safe relative path (e.g. assets/advisory/19.jpg).`,
+    };
+  }
+  return { ok: true, value: trimmed };
+}
+
+/** Resolves an image URL (https:// or site-relative path against NEXT_PUBLIC_SITE_URL). */
+export function resolveMediaUrl(raw?: string): string | null {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return null;
+  if (/^https:\/\//i.test(trimmed)) {
+    return safeExternalHref(trimmed, { httpsOnly: true });
+  }
+  if (!isSafeRelativePath(trimmed)) return null;
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim();
+  if (!base) return null;
+  const safeBase = safeExternalHref(base, { httpsOnly: false });
+  if (!safeBase) return null;
+  return `${safeBase.replace(/\/+$/, "")}/${trimmed.replace(/^\/+/, "")}`;
+}
+
+/** Returns 1-2 uppercase initials from a person or organization name. */
+export function getInitials(name?: string): string {
+  const words = String(name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => /[A-Za-z0-9]/.test(w));
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[words.length - 1][0]}`.toUpperCase();
+}
+
+/** Estimates reading time in minutes from Markdown text (~200 words/min). */
+export function estimateReadMinutes(markdown: string): number {
+  const trimmed = markdown.trim();
+  if (!trimmed) return 1;
+  const words = trimmed.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+/** True for safe, non-negative integer field values within the admin range. */
+export function isValidInt(n: unknown): n is number {
+  return (
+    typeof n === "number" &&
+    Number.isSafeInteger(n) &&
+    !Object.is(n, -0) &&
+    n >= 0 &&
+    n <= 9999
+  );
+}
+
+/** Validates an optional #RRGGBB hex color string. */
+export function validateHexColor(raw: unknown): ContentLinkValidationResult {
+  const trimmed = String(raw ?? "").trim();
+  if (!trimmed) return { ok: true, value: "" };
+  if (!/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+    return { ok: false, error: "Cover color must be a #RRGGBB hex code." };
+  }
+  return { ok: true, value: trimmed.toUpperCase() };
+}

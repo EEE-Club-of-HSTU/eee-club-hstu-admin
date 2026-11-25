@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { loadDemoContent } from "@/lib/demo-data";
+import { loadDemoContent, type SeedResultItem } from "@/lib/demo-data";
 import {
   formatTimestamp,
   getErrorMessage,
@@ -20,11 +20,17 @@ import {
   ArrowRight,
   Award,
   Bell,
+  BookOpen,
   Calendar,
+  CheckCircle2,
+  FolderDown,
   GraduationCap,
+  HelpCircle,
+  Images,
   Mail,
   Newspaper,
   Sparkles,
+  Users,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -34,8 +40,12 @@ interface DashboardStats {
   publishedNotices: number;
   certificates: number;
   subscribers: number;
-  totalEvents: number;
-  totalNotices: number;
+  blogs: number;
+  leadership: number;
+  gallery: number;
+  resources: number;
+  faqs: number;
+  hasAnyEmptySeedable: boolean;
 }
 
 export default function DashboardPage() {
@@ -44,10 +54,21 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [seedResults, setSeedResults] = useState<SeedResultItem[] | null>(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
+    // Each read settles on its own: one denied or failed collection must not blank the whole dashboard.
+    const failed: string[] = [];
+    const settle = async <T,>(label: string, p: Promise<T>): Promise<T | null> => {
+      try {
+        return await p;
+      } catch {
+        failed.push(label);
+        return null;
+      }
+    };
     try {
       const [
         alumniSnap,
@@ -56,29 +77,45 @@ export default function DashboardPage() {
         noticesSnap,
         certsSnap,
         newsletterSnap,
+        blogsSnap,
+        leadershipSnap,
+        gallerySnap,
+        magazinesSnap,
+        resourcesSnap,
+        faqsSnap,
+        constitutionSnap,
       ] = await Promise.all([
-        getDocs(collection(db, "alumni_registrations")),
-        getDocs(collection(db, "contact_messages")),
-        getDocs(collection(db, "event_logs")),
-        getDocs(collection(db, "notices")),
-        getDocs(collection(db, "certificates")),
-        getDocs(collection(db, "newsletter_subscribers")),
+        settle("alumni", getDocs(collection(db, "alumni_registrations"))),
+        settle("messages", getDocs(collection(db, "contact_messages"))),
+        settle("events", getDocs(collection(db, "event_logs"))),
+        settle("notices", getDocs(collection(db, "notices"))),
+        settle("certificates", getDocs(collection(db, "certificates"))),
+        settle("newsletter", getDocs(collection(db, "newsletter_subscribers"))),
+        settle("blog", getDocs(collection(db, "blogs"))),
+        settle("leadership", getDocs(collection(db, "leadership_members"))),
+        settle("gallery", getDocs(collection(db, "gallery_items"))),
+        settle("magazine", getDocs(collection(db, "magazines"))),
+        settle("resources", getDocs(collection(db, "resources"))),
+        settle("FAQs", getDocs(collection(db, "faqs"))),
+        settle("constitution page", getDoc(doc(db, "pages_static", "constitution"))),
       ]);
 
       const alumniList = sortByCreatedAtDesc(
-        alumniSnap.docs.map(
+        (alumniSnap?.docs ?? []).map(
           (d) => ({ id: d.id, ...d.data() } as AlumniRegistration)
         )
       );
-      const messagesList = messagesSnap.docs.map(
+      const messagesList = (messagesSnap?.docs ?? []).map(
         (d) => ({ id: d.id, ...d.data() } as ContactMessage)
       );
-      const eventsList = eventsSnap.docs.map(
+      const eventsList = (eventsSnap?.docs ?? []).map(
         (d) => ({ id: d.id, ...d.data() } as EventLog)
       );
-      const noticesList = noticesSnap.docs.map(
+      const noticesList = (noticesSnap?.docs ?? []).map(
         (d) => ({ id: d.id, ...d.data() } as Notice)
       );
+      // A collection counts as empty (seedable) only if it was actually read and had no documents.
+      const isEmpty = (snap: { size: number } | null) => snap !== null && snap.size === 0;
 
       const nowMs = Date.now();
       const upcomingPublished = eventsList.filter((ev) => {
@@ -87,19 +124,45 @@ export default function DashboardPage() {
         return Number.isFinite(t) && t >= nowMs;
       }).length;
 
+      const hasAnyEmptySeedable =
+        isEmpty(eventsSnap) ||
+        isEmpty(noticesSnap) ||
+        isEmpty(certsSnap) ||
+        isEmpty(leadershipSnap) ||
+        isEmpty(blogsSnap) ||
+        isEmpty(magazinesSnap) ||
+        isEmpty(resourcesSnap) ||
+        isEmpty(faqsSnap) ||
+        (constitutionSnap !== null && !constitutionSnap.exists());
+
       setStats({
         pendingAlumni: alumniList.filter((a) => a.status === "pending").length,
         newMessages: messagesList.filter((m) => m.status === "new").length,
         upcomingEvents: upcomingPublished,
         publishedNotices: noticesList.filter((n) => n.published).length,
-        certificates: certsSnap.size,
-        subscribers: newsletterSnap.size,
-        totalEvents: eventsSnap.size,
-        totalNotices: noticesSnap.size,
+        certificates: certsSnap?.size ?? 0,
+        subscribers: newsletterSnap?.size ?? 0,
+        blogs: blogsSnap?.size ?? 0,
+        leadership: leadershipSnap?.size ?? 0,
+        gallery: gallerySnap?.size ?? 0,
+        resources: resourcesSnap?.size ?? 0,
+        faqs: faqsSnap?.size ?? 0,
+        hasAnyEmptySeedable,
       });
       setLatestAlumni(alumniList.slice(0, 5));
+      if (failed.length > 0) {
+        setError(
+          `Couldn't load: ${failed.join(", ")}. Their counts show 0. ` +
+            "If these are new sections, deploy the latest Firestore rules."
+        );
+      }
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to load dashboard data. Check Firestore permissions."));
+      setError(
+        getErrorMessage(
+          err,
+          "Failed to load dashboard data. Check Firestore permissions."
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -111,10 +174,18 @@ export default function DashboardPage() {
 
   const handleLoadDemo = async () => {
     if (seeding) return;
+    const ok = window.confirm(
+      "This writes sample events, notices, people, posts and pages to the LIVE database, " +
+        "and published items appear on the public website straight away. " +
+        "Only empty sections are filled. Continue?"
+    );
+    if (!ok) return;
     setSeeding(true);
     setError(null);
+    setSeedResults(null);
     try {
-      await loadDemoContent();
+      const report = await loadDemoContent();
+      setSeedResults(report);
       await fetchDashboard();
     } catch (err) {
       const msg = getErrorMessage(err, "Failed to load demo content.");
@@ -125,13 +196,8 @@ export default function DashboardPage() {
     }
   };
 
-  const showDemoButton =
-    !loading &&
-    !error &&
-    stats !== null &&
-    stats.totalEvents === 0 &&
-    stats.totalNotices === 0 &&
-    stats.certificates === 0;
+  // Still offered when some reads failed: the seeder re-checks each section before writing.
+  const showDemoButton = !loading && stats !== null && stats.hasAnyEmptySeedable;
 
   const statCards = [
     {
@@ -176,6 +242,41 @@ export default function DashboardPage() {
       href: "/newsletter",
       icon: Newspaper,
     },
+    {
+      label: "Blog posts",
+      value: stats?.blogs ?? 0,
+      hint: "Articles & tutorials",
+      href: "/blog",
+      icon: BookOpen,
+    },
+    {
+      label: "Leadership members",
+      value: stats?.leadership ?? 0,
+      hint: "Executive, alumni & advisors",
+      href: "/leadership",
+      icon: Users,
+    },
+    {
+      label: "Gallery items",
+      value: stats?.gallery ?? 0,
+      hint: "Photos & captions",
+      href: "/gallery",
+      icon: Images,
+    },
+    {
+      label: "Resources",
+      value: stats?.resources ?? 0,
+      hint: "Notes, labs & code",
+      href: "/resources",
+      icon: FolderDown,
+    },
+    {
+      label: "FAQs",
+      value: stats?.faqs ?? 0,
+      hint: "Contact page Q&A",
+      href: "/faqs",
+      icon: HelpCircle,
+    },
   ];
 
   return (
@@ -198,7 +299,7 @@ export default function DashboardPage() {
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#D7FF3D] text-[#08090B] font-semibold text-sm px-5 py-3 shadow-sm hover:brightness-95 transition-all cursor-pointer disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" aria-hidden="true" />
-            {seeding ? "Loading demo content…" : "Load demo content"}
+            {seeding ? "Loading demo content…" : "Load demo content (writes to the live database)"}
           </button>
         )}
       </div>
@@ -211,6 +312,44 @@ export default function DashboardPage() {
           <strong className="font-semibold">Database Error: </strong>
           {error}
         </div>
+      )}
+
+      {seedResults && (
+        <section
+          aria-label="Demo content seeding report"
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 space-y-3"
+        >
+          <div className="flex items-center gap-2 text-sm font-bold text-emerald-900">
+            <CheckCircle2 className="w-4 h-4 text-emerald-700" aria-hidden="true" />
+            Demo content import summary
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {seedResults.map((item) => (
+              <div
+                key={item.key}
+                className="flex items-center justify-between gap-2 rounded-xl bg-white border border-emerald-100 px-3.5 py-2 text-xs"
+              >
+                <span className="font-semibold text-[#08090B]">{item.label}</span>
+                {item.status === "added" ? (
+                  <span className="px-2 py-0.5 rounded-full font-semibold bg-[#D7FF3D] text-[#08090B]">
+                    Added {item.count}
+                  </span>
+                ) : item.status === "error" ? (
+                  <span
+                    className="px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-700"
+                    title={item.message}
+                  >
+                    Failed{item.message ? `: ${item.message}` : ""}
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-600">
+                    Skipped (not empty)
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -285,8 +424,9 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 truncate mt-0.5">
-                      {[item.currentRole, item.organization].filter(Boolean).join(" — ") ||
-                        item.email}
+                      {[item.currentRole, item.organization]
+                        .filter(Boolean)
+                        .join(" — ") || item.email}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

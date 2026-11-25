@@ -106,6 +106,118 @@ No other fields are allowed on create. The public site never reads this collecti
 | email | string ≤ 200, valid email | yes |
 | createdAt | timestamp | yes (`serverTimestamp()`) |
 
+## Content collections (admin-managed, public reads `published == true`)
+
+Images are stored as URLs (`https://…`, or a site-relative path such as `assets/advisory/19.jpg`); this project does not use Firebase Storage. Every document below also has `createdAt` and `updatedAt` as numbers (ms). Public site queries use a single `where("published","==",true)` and sort in the browser.
+
+### `blogs/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| title | string ≤ 200 | yes | |
+| excerpt | string ≤ 400 | yes | shown on cards |
+| content | string ≤ 60000 | yes | Markdown; `$…$` and `$$…$$` are LaTeX math |
+| author | string ≤ 120 | yes | |
+| authorRole | string ≤ 120 | no | e.g. `Head · Robotics` |
+| tag | string | yes | one of `tutorial`, `recap`, `research`, `career`, `opinion`, `news` |
+| coverImageUrl | string ≤ 500 | no | |
+| readMinutes | integer | no | |
+| publishedOn | string | yes | `"YYYY-MM-DD"`; newest first |
+| featured | boolean | yes | the newest featured post leads the blog page |
+| published | boolean | yes | |
+
+Public post URL: `post.html?id=<document id>`.
+
+### `leadership_members/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| name | string ≤ 160 | yes | |
+| role | string ≤ 120 | yes | e.g. `General Secretary`, `Professor` |
+| category | string | yes | one of `executive`, `alumni`, `advisory`, `taskforce` |
+| subtitle | string ≤ 160 | no | e.g. `Level 3 · Semester 2`, `Batch 2019 · Power systems engineer` |
+| session | string ≤ 20 | no | e.g. `2026-27` |
+| photoUrl | string ≤ 500 | no | no photo → initials tile |
+| order | integer | yes | ascending within a category |
+| published | boolean | yes | |
+
+### `gallery_items/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| title | string ≤ 160 | yes | caption |
+| imageUrl | string ≤ 500 | yes | |
+| category | string | yes | one of `competition`, `workshop`, `trip`, `people`, `other` |
+| takenOn | string | no | `"YYYY-MM"` |
+| order | integer | yes | ascending |
+| published | boolean | yes | |
+
+### `magazines/{autoId}` — Pulse issues
+| field | type | required | notes |
+|---|---|---|---|
+| issueNumber | integer | yes | newest (highest) is the featured issue |
+| title | string ≤ 160 | yes | e.g. `The Grid Issue` |
+| season | string ≤ 60 | yes | e.g. `Winter 2026` |
+| summary | string ≤ 1000 | no | |
+| coverImageUrl | string ≤ 500 | no | no image → generated colour cover |
+| coverColor | string | no | `#RRGGBB` for the generated cover |
+| pdfUrl | string ≤ 500 | no | "Read issue" link |
+| pages | integer | no | |
+| contents | list of maps `{page: integer, title: string}` | no | table of contents, ≤ 30 entries |
+| published | boolean | yes | |
+
+### `resources/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| title | string ≤ 200 | yes | |
+| kind | string | yes | one of `notes`, `lab`, `code`, `exam`, `other` |
+| course | string ≤ 60 | no | e.g. `EEE 2101` |
+| fileType | string ≤ 20 | no | e.g. `PDF`, `ZIP` |
+| size | string ≤ 20 | no | e.g. `14 MB` |
+| url | string ≤ 500 | yes | download link (`https://…`) |
+| published | boolean | yes | |
+
+### `faqs/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| question | string ≤ 300 | yes | |
+| answer | string ≤ 3000 | yes | plain text (line breaks kept) |
+| order | integer | yes | ascending |
+| published | boolean | yes | |
+
+### `partners/{autoId}`
+| field | type | required | notes |
+|---|---|---|---|
+| name | string ≤ 160 | yes | |
+| category | string ≤ 80 | no | e.g. `Academic partner` |
+| logoUrl | string ≤ 500 | no | no logo → name set as a wordmark |
+| website | string ≤ 500 | no | `https://…` |
+| order | integer | yes | ascending |
+| published | boolean | yes | |
+
+## Singleton documents (public read, admin write)
+
+### `pages_static/{pageId}` — `pageId` is one of `constitution`, `history`, `privacy`, `terms`
+| field | type | required | notes |
+|---|---|---|---|
+| title | string ≤ 200 | yes | |
+| content | string ≤ 100000 | yes | Markdown (LaTeX allowed) |
+| updatedAt | number (ms) | yes | shown as "Last updated" |
+
+When a document is missing, the public site shows its built-in default content.
+
+### `site_settings/footer` — contact details and social links used in the site footer and contact page
+| field | type | notes |
+|---|---|---|
+| email, phone, officeHours, room, address | string ≤ 300 each | |
+| facebookUrl, instagramUrl, linkedinUrl, youtubeUrl, githubUrl | string ≤ 500 each | omit to hide that icon |
+| updatedAt | number (ms) | |
+
+### `site_settings/location`
+| field | type | notes |
+|---|---|---|
+| name | string ≤ 160 | e.g. `Department of EEE, HSTU` |
+| address | string ≤ 300 | |
+| mapUrl | string ≤ 500 | "Open in Google Maps" link |
+| updatedAt | number (ms) | |
+
 ## Indexes
 
 None needed: every public query is a single equality filter, and sorting happens in the browser. The admin app reads whole collections with `orderBy("createdAt","desc")`, which uses the automatic single-field index.
